@@ -296,7 +296,7 @@ with tabs[0]:
                     st.session_state.order_completed = True
                     
                     # Rerun the app to apply the reset
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.warning("Please select at least one item to place an order.")
     
@@ -450,7 +450,7 @@ with tabs[2]:
                     item_id = next(item["id"] for item in st.session_state.menu_items if item["name"] == row["Item Name"])
                     if st.button("Delete", key=f"del_{item_id}"):
                         delete_menu_item(item_id)
-                        st.experimental_rerun()
+                        st.rerun()
         else:
             st.info("No menu items available. Add some items to get started!")
 
