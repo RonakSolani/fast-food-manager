@@ -108,14 +108,14 @@ def save_data():
         "expenses": st.session_state.expenses
     }
     os.makedirs('data', exist_ok=True)
-    with open('data/shop_data.json', 'w') as f:
+    with open('shop_data.json', 'w') as f:
         json.dump(data, f)
 
 # Function to load data
 def load_data():
     try:
-        if os.path.exists('data/shop_data.json'):
-            with open('data/shop_data.json', 'r') as f:
+        if os.path.exists('shop_data.json'):
+            with open('shop_data.json', 'r') as f:
                 data = json.load(f)
                 st.session_state.orders = data.get("orders", [])
                 st.session_state.menu_items = data.get("menu_items", st.session_state.menu_items)
