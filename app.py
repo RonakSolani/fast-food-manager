@@ -107,7 +107,7 @@ def save_data():
         "menu_items": st.session_state.menu_items,
         "expenses": st.session_state.expenses
     }
-    os.makedirs('data', exist_ok=True)
+    # os.makedirs('data', exist_ok=True)
     with open('shop_data.json', 'w') as f:
         json.dump(data, f)
 
