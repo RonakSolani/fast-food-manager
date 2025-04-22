@@ -344,7 +344,7 @@ with tabs[1]:
             
             st.markdown("---")
             
-            # Prepare data for item-wise sales analysis
+           # Prepare data for item-wise sales analysis
             item_sales = {}
             for order in filtered_orders:
                 for item in order["items"]:
@@ -356,20 +356,21 @@ with tabs[1]:
                     item_sales[item["name"]]["quantity"] += item["quantity"]
                     item_sales[item["name"]]["revenue"] += item["subtotal"]
             
-            # Convert to DataFrame for visualization
+            # Convert to DataFrame
             sales_df = pd.DataFrame([
                 {"Item": item, "Quantity": data["quantity"], "Revenue": data["revenue"]}
                 for item, data in item_sales.items()
             ])
             
             if not sales_df.empty:
-                # Create two columns for charts
                 col1, col2 = st.columns(2)
                 
                 with col1:
                     st.subheader("Item-wise Sales Quantity")
+                    # Explicit grouping
+                    grouped_sales_qty = sales_df.groupby(('Item',))[['Quantity']].sum().reset_index()
                     fig = px.bar(
-                        sales_df, 
+                        grouped_sales_qty, 
                         x="Item", 
                         y="Quantity",
                         color="Item",
@@ -381,8 +382,10 @@ with tabs[1]:
                 
                 with col2:
                     st.subheader("Item-wise Revenue")
+                    # Explicit grouping
+                    grouped_sales_rev = sales_df.groupby(('Item',))[['Revenue']].sum().reset_index()
                     fig = px.pie(
-                        sales_df, 
+                        grouped_sales_rev, 
                         values="Revenue", 
                         names="Item",
                         hole=0.4
