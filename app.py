@@ -86,12 +86,15 @@ if 'orders' not in st.session_state:
 
 if 'menu_items' not in st.session_state:
     st.session_state.menu_items = [
-        {"id": str(uuid.uuid4()), "name": "Dabeli", "price": 20},
-        {"id": str(uuid.uuid4()), "name": "Sandwich", "price": 30},
-        {"id": str(uuid.uuid4()), "name": "Vada Pav", "price": 15},
-        {"id": str(uuid.uuid4()), "name": "Samosa", "price": 10},
-        {"id": str(uuid.uuid4()), "name": "Chai", "price": 10}
+        {"id": str(uuid.uuid4()), "name": "Dabeli", "price": 20, "category": "Fast Food"},
+        {"id": str(uuid.uuid4()), "name": "Sandwich", "price": 30, "category": "Fast Food"},
+        {"id": str(uuid.uuid4()), "name": "Vada Pav", "price": 15, "category": "Fast Food"},
+        {"id": str(uuid.uuid4()), "name": "Samosa", "price": 10, "category": "Snacks"},
+        {"id": str(uuid.uuid4()), "name": "Chai", "price": 10, "category": "Beverages"}
     ]
+
+if 'menu_categories' not in st.session_state:
+    st.session_state.menu_categories = ["Fast Food", "Snacks", "Beverages", "Desserts", "Others"]
 
 if 'expenses' not in st.session_state:
     st.session_state.expenses = []
@@ -105,21 +108,23 @@ def save_data():
     data = {
         "orders": st.session_state.orders,
         "menu_items": st.session_state.menu_items,
-        "expenses": st.session_state.expenses
+        "expenses": st.session_state.expenses,
+        "menu_categories": st.session_state.menu_categories
     }
     os.makedirs('data', exist_ok=True)
-    with open('shop_data.json', 'w') as f:
+    with open('data/shop_data.json', 'w') as f:
         json.dump(data, f)
 
 # Function to load data
 def load_data():
     try:
-        if os.path.exists('shop_data.json'):
-            with open('shop_data.json', 'r') as f:
+        if os.path.exists('data/shop_data.json'):
+            with open('data/shop_data.json', 'r') as f:
                 data = json.load(f)
                 st.session_state.orders = data.get("orders", [])
                 st.session_state.menu_items = data.get("menu_items", st.session_state.menu_items)
                 st.session_state.expenses = data.get("expenses", [])
+                st.session_state.menu_categories = data.get("menu_categories", ["Fast Food", "Snacks", "Beverages", "Desserts", "Others"])
     except Exception as e:
         st.error(f"Error loading data: {e}")
 
@@ -158,19 +163,33 @@ def add_expense(expense_date, category, amount, description):
     return expense
 
 # Function to add a new menu item
-def add_menu_item(name, price):
+def add_menu_item(name, price, category):
     item = {
         "id": str(uuid.uuid4()),
         "name": name,
-        "price": price
+        "price": price,
+        "category": category
     }
     st.session_state.menu_items.append(item)
     save_data()
     return item
 
+# Function to add a new category
+def add_menu_category(category_name):
+    if category_name not in st.session_state.menu_categories:
+        st.session_state.menu_categories.append(category_name)
+        save_data()
+        return True
+    return False
+
 # Function to delete a menu item
 def delete_menu_item(item_id):
     st.session_state.menu_items = [item for item in st.session_state.menu_items if item["id"] != item_id]
+    save_data()
+
+# Function to delete an order
+def delete_order(order_id):
+    st.session_state.orders = [order for order in st.session_state.orders if order["id"] != order_id]
     save_data()
 
 # Function to filter orders by date range
@@ -234,7 +253,7 @@ def export_expenses_to_excel(expenses):
     return df
 
 # Main App UI
-st.title("🍔 FastFood Shop Management")
+st.title("🍔 Jayubhai Dabeli Wala")
 
 # Create tabs for different sections
 tabs = st.tabs(["📝 New Order", "📊 Sales Report", "🍕 Menu Management", "💰 Expenses", "📈 Dashboard"])
@@ -247,8 +266,6 @@ with tabs[0]:
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.subheader("Select Items")
-        
         # Create a form for order entry
         with st.form(key="order_form"):
             # Reset order_completed flag if an order was just completed
@@ -259,31 +276,98 @@ with tabs[0]:
             order_items = []
             total_amount = 0
             
-            # Display menu items with quantity selectors
+            # Group menu items by their categories
+            menu_categories_dict = {}
+            for category in st.session_state.menu_categories:
+                menu_categories_dict[category] = [item for item in st.session_state.menu_items if item.get("category", "Others") == category]
+            
+            # If there are items without a category, add them to Others
             for item in st.session_state.menu_items:
-                col_item, col_qty, col_price = st.columns([2, 1, 1])
-                with col_item:
-                    st.write(f"**{item['name']}** (₹{item['price']})")                
-                with col_qty:
-                    # Initialize quantity to 0 or get existing value
-                    qty_key = f"qty_{item['id']}"
-                    quantity = st.number_input(f"Qty", min_value=0, max_value=100, value=st.session_state.get(qty_key, 0), step=1, key=qty_key)
-                with col_price:
-                    if quantity > 0:
-                        subtotal = quantity * item['price']
-                        st.write(f"₹{subtotal}")
-                        total_amount += subtotal
-                        order_items.append({
-                            "id": item["id"],
-                            "name": item["name"],
-                            "price": item["price"],
-                            "quantity": quantity,
-                            "subtotal": subtotal
-                        })
+                if "category" not in item:
+                    item["category"] = "Others"
+            
+            # Add horizontal scrolling for category tabs
+            st.markdown("""
+            <style>
+            .stTabs [data-baseweb="tab-list"] {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                white-space: nowrap;
+                padding-bottom: 5px;
+            }
+            .stTabs [data-baseweb="tab"] {
+                display: inline-block;
+                min-width: 100px;
+                text-align: center;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            # Display menu items with tabs for categories
+            category_tabs = st.tabs(list(menu_categories_dict.keys()))
+            
+            for i, category in enumerate(menu_categories_dict.keys()):
+                with category_tabs[i]:
+                    if not menu_categories_dict[category]:
+                        st.info(f"No items in {category} category.")
+                        continue
+                        
+                    # Create a grid layout for items (3 columns)
+                    items_in_category = menu_categories_dict[category]
+                    rows = [items_in_category[i:i+3] for i in range(0, len(items_in_category), 3)]
+                    
+                    for row in rows:
+                        cols = st.columns(3)
+                        for i, item in enumerate(row):
+                            with cols[i]:
+                                st.write(f"**{item['name']}**")
+                                st.write(f"₹{item['price']}")
+                                
+                                # Initialize quantity to 0 or get existing value
+                                qty_key = f"qty_{item['id']}"
+                                quantity = st.number_input(f"Qty", min_value=0, max_value=100, 
+                                                          value=st.session_state.get(qty_key, 0), 
+                                                          step=1, key=qty_key)
+                                
+                                if quantity > 0:
+                                    subtotal = quantity * item['price']
+                                    st.write(f"Subtotal: ₹{subtotal}")
+                                    total_amount += subtotal
+                                    order_items.append({
+                                        "id": item["id"],
+                                        "name": item["name"],
+                                        "price": item["price"],
+                                        "quantity": quantity,
+                                        "subtotal": subtotal
+                                    })
             
             st.markdown("---")
             st.markdown(f"### Total: ₹{total_amount}")
-            submit_button = st.form_submit_button(label="Complete Order")
+            
+            # Make the Complete Order button more prominent
+            st.markdown("""
+            <style>
+            div[data-testid="stFormSubmitButton"] > button {
+                background-color: #4CAF50;
+                color: white;
+                font-size: 20px;
+                font-weight: bold;
+                padding: 15px 25px;
+                width: 100%;
+                margin-top: 15px;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            }
+            div[data-testid="stFormSubmitButton"] > button:hover {
+                background-color: #45a049;
+                box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+                transform: translateY(-2px);
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            submit_button = st.form_submit_button(label="COMPLETE ORDER", help="Click to complete your order")
             
             if submit_button and order_items:
                 # Filter out items with zero quantity
@@ -296,7 +380,7 @@ with tabs[0]:
                     st.session_state.order_completed = True
                     
                     # Rerun the app to apply the reset
-                    st.rerun()
+                    st.experimental_rerun()
                 else:
                     st.warning("Please select at least one item to place an order.")
     
@@ -306,9 +390,16 @@ with tabs[0]:
         recent_orders = sorted(st.session_state.orders, key=lambda x: x["date"], reverse=True)[:5]
         
         for order in recent_orders:
-            with st.expander(f"Order {order['id'][:8]} - {order['date']} - ₹{order['total']}"):
-                for item in order["items"]:
-                    st.write(f"{item['name']} x {item['quantity']} = ₹{item['subtotal']}")
+            col_order, col_delete = st.columns([5, 1])
+            with col_order:
+                with st.expander(f"Order {order['id'][:8]} - {order['date']} - ₹{order['total']}"):
+                    for item in order["items"]:
+                        st.write(f"{item['name']} x {item['quantity']} = ₹{item['subtotal']}")
+            with col_delete:
+                if st.button("🗑️", key=f"del_order_{order['id']}", help="Delete this order"):
+                    delete_order(order['id'])
+                    st.success(f"Order {order['id'][:8]} deleted successfully!")
+                    st.experimental_rerun()
 
 # Tab 2: Sales Report
 with tabs[1]:
@@ -419,14 +510,32 @@ with tabs[2]:
     with col1:
         st.subheader("Add New Item")
         
-        # Form to add new menu item
-        with st.form(key="add_item_form"):
-            new_item_name = st.text_input("Item Name")
-            new_item_price = st.number_input("Price (₹)", min_value=1, value=20)
-            submit_button = st.form_submit_button(label="Add Item")
-            
-            if submit_button and new_item_name:
-                new_item = add_menu_item(new_item_name, new_item_price)
+        # Add tabs for item and category management
+        item_tabs = st.tabs(["Add Item", "Add Category"])
+        
+        # Tab for adding new menu item
+        with item_tabs[0]:
+            with st.form(key="add_item_form"):
+                new_item_name = st.text_input("Item Name")
+                new_item_price = st.number_input("Price (₹)", min_value=1, value=20)
+                new_item_category = st.selectbox("Category", options=st.session_state.menu_categories)
+                submit_button = st.form_submit_button(label="Add Item")
+                
+                if submit_button and new_item_name:
+                    new_item = add_menu_item(new_item_name, new_item_price, new_item_category)
+                    st.success(f"Added {new_item_name} to the menu!")
+        
+        # Tab for adding new category
+        with item_tabs[1]:
+            with st.form(key="add_category_form"):
+                new_category_name = st.text_input("Category Name")
+                category_submit_button = st.form_submit_button(label="Add Category")
+                
+                if category_submit_button and new_category_name:
+                    if add_menu_category(new_category_name):
+                        st.success(f"Added {new_category_name} category!")
+                    else:
+                        st.warning(f"Category {new_category_name} already exists!")
                 st.success(f"Added {new_item_name} to the menu!")
     
     with col2:
@@ -435,22 +544,24 @@ with tabs[2]:
         # Display current menu items in a table
         if st.session_state.menu_items:
             menu_df = pd.DataFrame(st.session_state.menu_items)
-            menu_df = menu_df[["name", "price"]]
-            menu_df.columns = ["Item Name", "Price (₹)"]
-            menu_df = menu_df.sort_values(by="Item Name")
+            menu_df = menu_df[["name", "price", "category"]]
+            menu_df.columns = ["Item Name", "Price (₹)", "Category"]
+            menu_df = menu_df.sort_values(by=["Category", "Item Name"])
             
             # Display with delete buttons
             for i, row in menu_df.iterrows():
-                col_name, col_price, col_action = st.columns([2, 1, 1])
+                col_name, col_price, col_category, col_action = st.columns([2, 1, 1, 1])
                 with col_name:
                     st.write(row["Item Name"])
                 with col_price:
                     st.write(f"₹{row['Price (₹)']}")
+                with col_category:
+                    st.write(row["Category"])
                 with col_action:
                     item_id = next(item["id"] for item in st.session_state.menu_items if item["name"] == row["Item Name"])
                     if st.button("Delete", key=f"del_{item_id}"):
                         delete_menu_item(item_id)
-                        st.rerun()
+                        st.experimental_rerun()
         else:
             st.info("No menu items available. Add some items to get started!")
 
