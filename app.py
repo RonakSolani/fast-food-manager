@@ -112,7 +112,7 @@ def save_data():
         "menu_categories": st.session_state.menu_categories
     }
     os.makedirs('data', exist_ok=True)
-    with open('data/shop_data.json', 'w') as f:
+    with open('shop_data.json', 'w') as f:
         json.dump(data, f)
 
 # Function to load data
